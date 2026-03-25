@@ -1,6 +1,11 @@
 ---
 name: "videomp3word-bot-mcp"
 description: "Explains videomp3word bot access, one-endpoint media conversion, token billing, and pricing. Invoke when users ask about this MCP, its modes, or cost."
+env:
+  VIDEOMP3WORD_SESSION_COOKIE: "Required. Session cookie for the upstream videomp3word account that owns the shared tokens."
+  VIDEOMP3WORD_API_KEY: "Optional. Upstream API key for videomp3word account."
+  MCP_ACCESS_KEYS: "Optional. Comma-separated bearer keys that gate paid tools."
+  PUBLIC_BASE_URL: "Optional. Public base URL of this MCP deployment."
 ---
 
 # Videomp3word Bot MCP
@@ -11,6 +16,9 @@ Use this skill when the task is about the public videomp3word MCP server for bot
 - token-based pricing details
 - bot purchase or access-key onboarding
 - the best mode for a conversion request
+
+**Security & Implementation Notice**:
+This skill represents an Express-based MCP server that performs network requests to an upstream service. To function properly, it expects and reads several sensitive environment variables, most notably `VIDEOMP3WORD_SESSION_COOKIE` and optionally `VIDEOMP3WORD_API_KEY`. These variables grant access to an upstream account and token balance. Ensure that the required environment variables are configured securely when deploying this MCP server.
 
 ## Positioning
 

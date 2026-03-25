@@ -1,6 +1,26 @@
 {
   "name": "videomp3word-mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
+  "mcp": {
+    "env": {
+      "VIDEOMP3WORD_SESSION_COOKIE": {
+        "description": "Session cookie for the upstream videomp3word account that owns the shared tokens",
+        "required": true
+      },
+      "VIDEOMP3WORD_API_KEY": {
+        "description": "Upstream API key for videomp3word account",
+        "required": false
+      },
+      "MCP_ACCESS_KEYS": {
+        "description": "Optional comma-separated bearer keys that gate paid tools",
+        "required": false
+      },
+      "PUBLIC_BASE_URL": {
+        "description": "Public base URL of this MCP deployment",
+        "required": false
+      }
+    }
+  },
   "description": "Public MCP server for videomp3word.com. Convert between Video, MP3 & Word instantly.",
   "author": "Emzan Technology Ltd.",
   "license": "MIT",
