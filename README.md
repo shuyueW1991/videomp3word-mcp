@@ -1,13 +1,13 @@
 # videomp3word-mcp
 
-Public MCP server for videomp3word.com that is safe to publish on discovery hubs such as clawhub.
+Express MCP server for videomp3word.com. This package requires an upstream account credential and should be reviewed carefully before any public listing.
 
 ## What this server gives bots
 
 - one MCP endpoint for video to mp3, video to word, mp3 to word, and word to mp3
 - token-based billing that matches actual usage instead of subscription duration
 - competitive package pricing
-- a publish-safe wrapper that keeps secrets in environment variables instead of source control
+- a wrapper that keeps secrets in environment variables instead of source control
 
 ## Pricing
 
@@ -21,9 +21,17 @@ The server also queries live task-token prices from videomp3word.com for each co
 
 - no code is imported from `/home/wangshuyue/videomp3word/video_to_text`
 - no local secrets, cookies, or keys are committed
-- restricted conversion tools can require `Authorization: Bearer <key>`
+- the server sends upstream credentials only to the configured `VIDEOMP3WORD_BASE_URL`
+- restricted conversion tools can require `Authorization: Bearer <key>`, but leaving `MCP_ACCESS_KEYS` unset makes paid tools publicly callable
 - remote input URLs are validated to block localhost and private-network targets
 - generated artifacts stay in memory and expire automatically
+
+## Trust notes
+
+- `VIDEOMP3WORD_SESSION_COOKIE` is a sensitive credential that can spend the upstream account's token balance
+- use a dedicated upstream account for this deployment instead of a personal or production browser session
+- set `MCP_ACCESS_KEYS` before exposing the server on a public hub
+- confirm the registry listing mirrors the environment requirements declared in this repository
 
 ## Environment
 
@@ -90,5 +98,5 @@ Word to mp3:
 ## Deployment notes
 
 - configure `BOT_PURCHASE_URL` and `BOT_KEY_PORTAL_URL` before listing the server publicly
-- keep `MCP_ACCESS_KEYS` outside the repository
+- keep `MCP_ACCESS_KEYS` outside the repository and enable them before public exposure
 - verify the upstream videomp3word session owns enough tokens for public traffic

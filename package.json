@@ -7,8 +7,24 @@
         "description": "Session cookie for the upstream videomp3word account that owns the shared tokens",
         "required": true
       },
+      "VIDEOMP3WORD_BASE_URL": {
+        "description": "Optional upstream site URL, defaults to https://videomp3word.com",
+        "required": false
+      },
       "VIDEOMP3WORD_API_KEY": {
         "description": "Upstream API key for videomp3word account",
+        "required": false
+      },
+      "BOT_PURCHASE_URL": {
+        "description": "Optional purchase page shown to bots that need access or tokens",
+        "required": false
+      },
+      "BOT_KEY_PORTAL_URL": {
+        "description": "Optional page where bots retrieve an access key after purchase",
+        "required": false
+      },
+      "BOT_SUPPORT_URL": {
+        "description": "Optional support page for bot operators",
         "required": false
       },
       "MCP_ACCESS_KEYS": {
@@ -18,10 +34,22 @@
       "PUBLIC_BASE_URL": {
         "description": "Public base URL of this MCP deployment",
         "required": false
+      },
+      "ARTIFACT_TTL_SECONDS": {
+        "description": "Optional artifact lifetime in seconds, defaults to 1800",
+        "required": false
+      },
+      "HOST": {
+        "description": "Optional bind host, defaults to 0.0.0.0",
+        "required": false
+      },
+      "PORT": {
+        "description": "Optional port, defaults to 3000",
+        "required": false
       }
     }
   },
-  "description": "Public MCP server for videomp3word.com. Convert between Video, MP3 & Word instantly.",
+  "description": "Express MCP server for videomp3word.com. Requires an upstream session cookie and should be gated before public use.",
   "author": "Emzan Technology Ltd.",
   "license": "MIT",
   "private": false,

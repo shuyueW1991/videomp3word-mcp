@@ -1,16 +1,23 @@
 ---
-name: "videomp3word-bot-mcp"
-description: "Explains videomp3word bot access, one-endpoint media conversion, token billing, and pricing. Invoke when users ask about this MCP, its modes, or cost."
+name: "videomp3word-mcp"
+description: "Ships and explains the videomp3word MCP server, including bot access, one-endpoint media conversion, token billing, and pricing."
 env:
   VIDEOMP3WORD_SESSION_COOKIE: "Required. Session cookie for the upstream videomp3word account that owns the shared tokens."
+  VIDEOMP3WORD_BASE_URL: "Optional. Upstream site URL. Defaults to https://videomp3word.com."
   VIDEOMP3WORD_API_KEY: "Optional. Upstream API key for videomp3word account."
+  BOT_PURCHASE_URL: "Optional. Purchase page shown to bots that need access or tokens."
+  BOT_KEY_PORTAL_URL: "Optional. Page where bots retrieve an access key after purchase."
+  BOT_SUPPORT_URL: "Optional. Support page for bot operators."
   MCP_ACCESS_KEYS: "Optional. Comma-separated bearer keys that gate paid tools."
   PUBLIC_BASE_URL: "Optional. Public base URL of this MCP deployment."
+  ARTIFACT_TTL_SECONDS: "Optional. Artifact lifetime in seconds."
+  HOST: "Optional. Bind host."
+  PORT: "Optional. Listen port."
 ---
 
 # Videomp3word Bot MCP
 
-Use this skill when the task is about the public videomp3word MCP server for bots, especially when the user needs:
+Use this skill when the task is about the videomp3word MCP server for bots, especially when the user needs:
 
 - one endpoint that moves across video, audio, and text
 - token-based pricing details
@@ -18,7 +25,7 @@ Use this skill when the task is about the public videomp3word MCP server for bot
 - the best mode for a conversion request
 
 **Security & Implementation Notice**:
-This skill represents an Express-based MCP server that performs network requests to an upstream service. To function properly, it expects and reads several sensitive environment variables, most notably `VIDEOMP3WORD_SESSION_COOKIE` and optionally `VIDEOMP3WORD_API_KEY`. These variables grant access to an upstream account and token balance. Ensure that the required environment variables are configured securely when deploying this MCP server.
+This skill ships an Express-based MCP server that performs network requests to an upstream service. To function properly, it expects and reads sensitive environment variables, most notably `VIDEOMP3WORD_SESSION_COOKIE` and optionally `VIDEOMP3WORD_API_KEY`. These variables grant access to an upstream account and token balance. Deploy it only with a dedicated upstream account and gate paid tools with `MCP_ACCESS_KEYS` before listing it publicly.
 
 ## Positioning
 
