@@ -1,6 +1,6 @@
 {
   "name": "videomp3word-mcp",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "mcp": {
     "env": {
       "VIDEOMP3WORD_SESSION_COOKIE": {
