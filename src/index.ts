@@ -101,7 +101,32 @@ const modeCatalog: Record<
 };
 
 function getConfig(): ServerConfig {
-  const baseUrl = (process.env.VIDEOMP3WORD_BASE_URL || "https://videomp3word.com").replace(/\/+$/, "");
+  const configuredBaseUrl = process.env.VIDEOMP3WORD_BASE_URL || "https://videomp3word.com";
+  let parsedBaseUrl: URL;
+  try {
+    parsedBaseUrl = new URL(configuredBaseUrl);
+  } catch {
+    throw new Error("VIDEOMP3WORD_BASE_URL must be a valid absolute URL.");
+  }
+
+  if (!["http:", "https:"].includes(parsedBaseUrl.protocol)) {
+    throw new Error("VIDEOMP3WORD_BASE_URL must use http or https.");
+  }
+
+  const allowedUpstreamHosts = new Set(
+    String(process.env.VIDEOMP3WORD_ALLOWED_UPSTREAM_HOSTS || "videomp3word.com,www.videomp3word.com")
+      .split(",")
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean)
+  );
+  const upstreamHost = parsedBaseUrl.hostname.toLowerCase();
+  if (!allowedUpstreamHosts.has(upstreamHost)) {
+    throw new Error(
+      `VIDEOMP3WORD_BASE_URL host "${upstreamHost}" is not allowed. Configure VIDEOMP3WORD_ALLOWED_UPSTREAM_HOSTS to permit it.`
+    );
+  }
+
+  const baseUrl = parsedBaseUrl.toString().replace(/\/+$/, "");
   const accessKeys = new Set(
     String(process.env.MCP_ACCESS_KEYS || "")
       .split(",")

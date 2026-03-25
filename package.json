@@ -1,6 +1,6 @@
 {
   "name": "videomp3word-mcp",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "mcp": {
     "env": {
       "VIDEOMP3WORD_SESSION_COOKIE": {
@@ -9,6 +9,10 @@
       },
       "VIDEOMP3WORD_BASE_URL": {
         "description": "Optional upstream site URL, defaults to https://videomp3word.com",
+        "required": false
+      },
+      "VIDEOMP3WORD_ALLOWED_UPSTREAM_HOSTS": {
+        "description": "Optional comma-separated allowed hostnames for VIDEOMP3WORD_BASE_URL, defaults to videomp3word.com,www.videomp3word.com",
         "required": false
       },
       "VIDEOMP3WORD_API_KEY": {

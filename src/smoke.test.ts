@@ -183,14 +183,14 @@ test("bot access flow smoke test", async () => {
   await stopServer(appServer);
 
   const baseUrl = `http://127.0.0.1:${appPort}`;
-  const app = spawn("node", ["dist/index.js"], {
+  const app = spawn(process.execPath, ["dist/index.js"], {
     cwd: repoRoot,
     env: {
-      ...process.env,
       HOST: "127.0.0.1",
       PORT: String(appPort),
       PUBLIC_BASE_URL: baseUrl,
       VIDEOMP3WORD_BASE_URL: upstream.url,
+      VIDEOMP3WORD_ALLOWED_UPSTREAM_HOSTS: "127.0.0.1",
       VIDEOMP3WORD_SESSION_COOKIE: sessionCookie,
       MCP_ACCESS_KEYS: accessKey,
       BOT_PURCHASE_URL: "https://example.com/buy",
