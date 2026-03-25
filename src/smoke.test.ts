@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawn, type ChildProcessByStdio } from "node:child_process";
+import { fork, type ChildProcessByStdio } from "node:child_process";
 import { once } from "node:events";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { AddressInfo } from "node:net";
@@ -15,7 +15,7 @@ type StartedServer = {
   url: string;
 };
 
-type SpawnedApp = ChildProcessByStdio<null, Readable, Readable>;
+type SpawnedApp = import("node:child_process").ChildProcess;
 type ToolTextContent = {
   type: "text";
   text: string;
@@ -45,8 +45,8 @@ async function waitForAppReady(process: SpawnedApp): Promise<void> {
   let stdout = "";
   let stderr = "";
 
-  process.stdout.setEncoding("utf8");
-  process.stderr.setEncoding("utf8");
+  process.stdout?.setEncoding("utf8");
+  process.stderr?.setEncoding("utf8");
 
   await new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(() => {
@@ -73,13 +73,13 @@ async function waitForAppReady(process: SpawnedApp): Promise<void> {
 
     const cleanup = () => {
       clearTimeout(timeout);
-      process.stdout.off("data", onStdout);
-      process.stderr.off("data", onStderr);
+      process.stdout?.off("data", onStdout);
+      process.stderr?.off("data", onStderr);
       process.off("exit", onExit);
     };
 
-    process.stdout.on("data", onStdout);
-    process.stderr.on("data", onStderr);
+    process.stdout?.on("data", onStdout);
+    process.stderr?.on("data", onStderr);
     process.on("exit", onExit);
   });
 }
@@ -183,7 +183,7 @@ test("bot access flow smoke test", async () => {
   await stopServer(appServer);
 
   const baseUrl = `http://127.0.0.1:${appPort}`;
-  const app = spawn(process.execPath, ["dist/index.js"], {
+  const app = fork("dist/index.js", [], {
     cwd: repoRoot,
     env: {
       HOST: "127.0.0.1",
@@ -197,7 +197,7 @@ test("bot access flow smoke test", async () => {
       BOT_KEY_PORTAL_URL: "https://example.com/portal",
       BOT_SUPPORT_URL: "https://example.com/support",
     },
-    stdio: ["ignore", "pipe", "pipe"],
+    stdio: ["ignore", "pipe", "pipe", "ipc"],
   });
 
   try {

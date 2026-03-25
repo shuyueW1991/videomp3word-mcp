@@ -150,6 +150,8 @@ function getConfig(): ServerConfig {
   };
 }
 
+const serverConfig = getConfig();
+
 function getRequestBaseUrl(req: Request, config: ServerConfig): string | undefined {
   if (config.publicBaseUrl) {
     return config.publicBaseUrl;
@@ -921,16 +923,14 @@ app.get("/mcp", (_req, res) => {
 });
 
 app.post("/mcp", async (req: Request, res: ExpressResponse) => {
-  const config = getConfig();
-
-  if (isRestrictedToolCall(req) && !isAuthorizedRequest(req, config)) {
+  if (isRestrictedToolCall(req) && !isAuthorizedRequest(req, serverConfig)) {
     res.status(401).json(jsonRpcError(req.body?.id ?? null, -32001, "Unauthorized. Provide a valid bearer key."));
     return;
   }
 
   try {
-    const publicBaseUrl = getRequestBaseUrl(req, config);
-    const server = createServer(config, publicBaseUrl);
+    const publicBaseUrl = getRequestBaseUrl(req, serverConfig);
+    const server = createServer(serverConfig, publicBaseUrl);
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,
@@ -951,9 +951,8 @@ app.post("/mcp", async (req: Request, res: ExpressResponse) => {
   }
 });
 
-const config = getConfig();
-app.listen(config.port, config.host, () => {
+app.listen(serverConfig.port, serverConfig.host, () => {
   process.stdout.write(
-    `videomp3word-mcp listening on http://${config.host}:${config.port} with upstream ${config.baseUrl}\n`
+    `videomp3word-mcp listening on http://${serverConfig.host}:${serverConfig.port} with upstream ${serverConfig.baseUrl}\n`
   );
 });
