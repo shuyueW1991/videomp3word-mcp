@@ -895,12 +895,11 @@ app.use((req, res, next) => {
 });
 
 app.get("/health", (_req, res) => {
-  const config = getConfig();
   res.json({
     ok: true,
     name: "videomp3word-mcp",
-    hasAccessKeys: config.accessKeys.size > 0,
-    hasUpstreamCredentials: hasServiceCredentials(config),
+    hasAccessKeys: serverConfig.accessKeys.size > 0,
+    hasUpstreamCredentials: hasServiceCredentials(serverConfig),
   });
 });
 
