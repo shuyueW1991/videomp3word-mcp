@@ -1,0 +1,44 @@
+{
+  "name": "videomp3word-mcp",
+  "version": "1.0.0",
+  "description": "Public MCP server for videomp3word.com. Convert between Video, MP3 & Word instantly.",
+  "author": "Emzan Technology Ltd.",
+  "license": "MIT",
+  "private": false,
+  "type": "module",
+  "main": "dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "videomp3word",
+    "video",
+    "audio",
+    "transcription",
+    "speech-to-text",
+    "text-to-speech"
+  ],
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.5",
+    "express": "^5.1.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.5.2",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  }
+}
