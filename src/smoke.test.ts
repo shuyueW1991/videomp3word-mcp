@@ -64,6 +64,10 @@ async function waitForAppReady(process: SpawnedApp): Promise<void> {
 
     const onStderr = (chunk: string) => {
       stderr += chunk;
+      if (stderr.includes("videomp3word-mcp listening on")) {
+        cleanup();
+        resolve();
+      }
     };
 
     const onExit = (code: number | null, signal: NodeJS.Signals | null) => {

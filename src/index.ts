@@ -1,9 +1,11 @@
+#!/usr/bin/env node
 import { randomUUID } from "node:crypto";
 import dns from "node:dns/promises";
 import net from "node:net";
 import express, { type Request, type Response as ExpressResponse } from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { serverConfig, type ServerConfig } from "./config.js";
 
@@ -117,7 +119,7 @@ function isRestrictedToolCall(req: Request): boolean {
 
   return (
     method === "tools/call" &&
-    (toolName === "videomp3word_convert" || toolName === "videomp3word_token_balance")
+    (toolName === "videomp3word_convert" || toolName === "videomp3word_token_balance" || toolName === "videomp3word_pay")
   );
 }
 
@@ -596,6 +598,52 @@ function createServer(config: ServerConfig, publicBaseUrl: string | undefined) {
   );
 
   server.registerTool(
+    "videomp3word_pay",
+    {
+      title: "Pay for Tokens",
+      description: "Generate a Stripe checkout session URL for bots with pay authority to buy tokens directly.",
+      inputSchema: z.object({
+        packageTokens: z.enum(["10", "100", "500"]).describe("How many tokens to buy per package"),
+        quantity: z.number().min(1).max(100).optional().describe("Number of packages to buy"),
+      }),
+    },
+    async ({ packageTokens, quantity = 1 }) => {
+      const packageName = `${packageTokens} Tokens`;
+      const payload = new URLSearchParams();
+      payload.append("packageName", packageName);
+      payload.append("quantity", String(quantity));
+
+      const response = await fetch(new URL("/api/stripe/create-checkout-session", config.baseUrl), {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+          ...buildUpstreamHeaders(config),
+        },
+        body: payload.toString(),
+      });
+
+      if (!response.ok) {
+        throw new Error(await extractUpstreamError(response));
+      }
+
+      const json = await response.json() as { url?: string };
+      if (!json.url) {
+        throw new Error("No checkout URL returned from upstream.");
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Payment session created successfully. Please complete your payment at this URL: ${json.url}`,
+          },
+        ],
+        structuredContent: { checkoutUrl: json.url },
+      };
+    }
+  );
+
+  server.registerTool(
     "videomp3word_token_balance",
     {
       title: "Token Balance",
@@ -885,8 +933,23 @@ app.post("/mcp", async (req: Request, res: ExpressResponse) => {
   }
 });
 
-app.listen(serverConfig.port, serverConfig.host, () => {
-  process.stdout.write(
-    `videomp3word-mcp listening on http://${serverConfig.host}:${serverConfig.port} with upstream ${serverConfig.baseUrl}\n`
-  );
-});
+const isStdio = process.argv.includes("stdio");
+
+if (isStdio) {
+  async function runStdio() {
+    const server = createServer(serverConfig, serverConfig.publicBaseUrl);
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    console.error(`videomp3word-mcp listening on stdio with upstream ${serverConfig.baseUrl}`);
+  }
+  runStdio().catch((error) => {
+    console.error("Fatal error running stdio server:", error);
+    process.exit(1);
+  });
+} else {
+  app.listen(serverConfig.port, serverConfig.host, () => {
+    console.error(
+      `videomp3word-mcp listening on http://${serverConfig.host}:${serverConfig.port} with upstream ${serverConfig.baseUrl}`
+    );
+  });
+}

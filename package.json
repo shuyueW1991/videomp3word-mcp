@@ -1,6 +1,6 @@
 {
   "name": "videomp3word-mcp",
-  "version": "1.0.6",
+  "version": "1.1.0",
   "mcp": {
     "env": {
       "VIDEOMP3WORD_SESSION_COOKIE": {
@@ -59,6 +59,9 @@
   "private": false,
   "type": "module",
   "main": "dist/index.js",
+  "bin": {
+    "videomp3word-mcp": "dist/index.js"
+  },
   "files": [
     "dist",
     "SKILL.md"
