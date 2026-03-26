@@ -35,15 +35,18 @@ The server also queries live task-token prices from videomp3word.com for each co
 
 ## Environment
 
+**Crucial Security Warning**: This server acts as a proxy to an upstream `videomp3word.com` account. It spends tokens on behalf of the account whose session cookie is provided. You MUST configure the `VIDEOMP3WORD_SESSION_COOKIE` environment variable, and you SHOULD configure `MCP_ACCESS_KEYS` to prevent unauthorized agents from spending your tokens.
+
 Set these variables before deployment:
 
-- `VIDEOMP3WORD_SESSION_COOKIE`: session cookie for the upstream videomp3word account that owns the shared tokens
+- `VIDEOMP3WORD_SESSION_COOKIE` **(REQUIRED)**: session cookie for the upstream videomp3word account that owns the shared tokens. This is a sensitive credential.
+- `MCP_ACCESS_KEYS` **(STRONGLY RECOMMENDED)**: comma-separated bearer keys that gate paid tools. If left unset, paid conversion tools are publicly callable and will drain your token balance.
 - `VIDEOMP3WORD_BASE_URL`: upstream site URL, defaults to `https://videomp3word.com`
+- `VIDEOMP3WORD_API_KEY`: upstream API key for videomp3word account (optional alternative or supplement to cookie)
 - `PUBLIC_BASE_URL`: public base URL of this MCP deployment, used for artifact download links
 - `BOT_PURCHASE_URL`: where bots buy access or tokens
 - `BOT_KEY_PORTAL_URL`: where bots retrieve their access key after purchase
 - `BOT_SUPPORT_URL`: support or contact page for bot operators
-- `MCP_ACCESS_KEYS`: optional comma-separated bearer keys that gate paid tools
 - `ARTIFACT_TTL_SECONDS`: optional artifact lifetime, default `1800`
 - `HOST`: optional bind host, default `0.0.0.0`
 - `PORT`: optional port, default `3000`

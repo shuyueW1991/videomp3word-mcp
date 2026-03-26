@@ -27,7 +27,7 @@ Use this skill when the task is about the videomp3word MCP server for bots (like
 - Clawhub compatibility via Stdio execution
 
 **Security & Implementation Notice**:
-This skill ships an Express/Stdio-based MCP server that performs network requests to an upstream service. To function properly, it expects and reads sensitive environment variables, most notably `VIDEOMP3WORD_SESSION_COOKIE` and optionally `VIDEOMP3WORD_API_KEY`. These variables grant access to an upstream account and token balance. Deploy it only with a dedicated upstream account and gate paid tools with `MCP_ACCESS_KEYS` before listing it publicly.
+This skill ships an Express/Stdio-based MCP server that performs network requests to an upstream service. To function properly, it expects and reads sensitive environment variables, most notably `VIDEOMP3WORD_SESSION_COOKIE` (which is **REQUIRED** and allows the server to spend the upstream account's token balance) and optionally `VIDEOMP3WORD_API_KEY`. Deploy it only with a dedicated upstream account and you **STRONGLY SHOULD** gate paid tools with `MCP_ACCESS_KEYS` before listing it publicly, as leaving it unset makes paid tools publicly callable and will drain the token balance.
 
 ## Positioning for Bots
 
