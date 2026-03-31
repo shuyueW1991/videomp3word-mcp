@@ -11,7 +11,7 @@ Express MCP server for videomp3word.com. This package requires an upstream accou
 
 ## Pricing
 
-- 10 tokens: USD $0.90
+- 10 tokens: USD $0.99
 - 100 tokens: USD $8.90
 - 500 tokens: USD $34.90
 

@@ -44,7 +44,7 @@ app.use(express.json({ limit: "1mb" }));
 const artifacts = new Map<string, ArtifactRecord>();
 
 const packageCatalog = [
-  { tokens: 10, priceUsd: 0.9 },
+  { tokens: 10, priceUsd: 0.99 },
   { tokens: 100, priceUsd: 8.9 },
   { tokens: 500, priceUsd: 34.9 },
 ] as const;
@@ -608,7 +608,7 @@ function createServer(config: ServerConfig, publicBaseUrl: string | undefined) {
       }),
     },
     async ({ packageTokens, quantity = 1 }) => {
-      const packageName = `${packageTokens} Tokens`;
+      const packageName = `Extra ${packageTokens} tokens`;
       const payload = new URLSearchParams();
       payload.append("packageName", packageName);
       payload.append("quantity", String(quantity));
@@ -635,7 +635,7 @@ function createServer(config: ServerConfig, publicBaseUrl: string | undefined) {
         content: [
           {
             type: "text",
-            text: `Payment session created successfully. Please complete your payment at this URL: ${json.url}`,
+            text: `Payment session created successfully. Please present this URL to the human user to complete the payment and enjoy the services: ${json.url}`,
           },
         ],
         structuredContent: { checkoutUrl: json.url },
@@ -686,6 +686,7 @@ function createServer(config: ServerConfig, publicBaseUrl: string | undefined) {
       }),
     },
     async ({ mode, sourceUrl, text, format, voice, languageType }) => {
+      try {
       if (mode === "word_to_mp3") {
         const rawText = text?.trim() || "";
         if (!rawText) {
@@ -858,6 +859,21 @@ function createServer(config: ServerConfig, publicBaseUrl: string | undefined) {
         content: [{ type: "text", text: transcript }],
         structuredContent: output,
       };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const suggestion = errorMessage.toLowerCase().includes("token") || errorMessage.toLowerCase().includes("balance") || errorMessage.toLowerCase().includes("quota")
+          ? "\nHint: If you have run out of tokens, you can purchase more using the videomp3word_pay tool."
+          : "";
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Conversion failed: ${errorMessage}${suggestion}`,
+            },
+          ],
+          isError: true,
+        };
+      }
     }
   );
 

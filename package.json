@@ -1,7 +1,12 @@
 {
   "name": "videomp3word-mcp",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "mcp": {
+    "command": "node",
+    "args": [
+      "dist/index.js",
+      "stdio"
+    ],
     "env": {
       "VIDEOMP3WORD_SESSION_COOKIE": {
         "description": "Session cookie for the upstream videomp3word account that owns the shared tokens. This is a sensitive credential required to spend tokens.",
