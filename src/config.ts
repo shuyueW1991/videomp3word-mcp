@@ -14,6 +14,13 @@ export type ServerConfig = {
 
 export function getConfig(): ServerConfig {
   const configuredBaseUrl = process.env.VIDEOMP3WORD_BASE_URL || "https://videomp3word.com";
+  const sessionCookie = process.env.VIDEOMP3WORD_SESSION_COOKIE?.trim();
+  if (!sessionCookie) {
+    throw new Error(
+      "VIDEOMP3WORD_SESSION_COOKIE is required. Use a dedicated upstream videomp3word account for this deployment."
+    );
+  }
+
   let parsedBaseUrl: URL;
   try {
     parsedBaseUrl = new URL(configuredBaseUrl);
@@ -56,7 +63,7 @@ export function getConfig(): ServerConfig {
     port: Number(process.env.PORT || 3000),
     baseUrl,
     publicBaseUrl: process.env.PUBLIC_BASE_URL?.replace(/\/+$/, ""),
-    sessionCookie: process.env.VIDEOMP3WORD_SESSION_COOKIE?.trim(),
+    sessionCookie,
     upstreamApiKey: process.env.VIDEOMP3WORD_API_KEY?.trim(),
     purchaseUrl: (process.env.BOT_PURCHASE_URL || `${baseUrl}/profile`).trim(),
     keyPortalUrl: (process.env.BOT_KEY_PORTAL_URL || `${baseUrl}/contact`).trim(),

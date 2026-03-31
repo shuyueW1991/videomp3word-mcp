@@ -40,9 +40,10 @@ The server also queries live task-token prices from videomp3word.com for each co
 Set these variables before deployment:
 
 - `VIDEOMP3WORD_SESSION_COOKIE` **(REQUIRED)**: session cookie for the upstream videomp3word account that owns the shared tokens. This is a sensitive credential.
+- `VIDEOMP3WORD_ALLOWED_UPSTREAM_HOSTS`: optional comma-separated allowlist for `VIDEOMP3WORD_BASE_URL`, default `videomp3word.com,www.videomp3word.com`
 - `MCP_ACCESS_KEYS` **(STRONGLY RECOMMENDED)**: comma-separated bearer keys that gate paid tools. If left unset, paid conversion tools are publicly callable and will drain your token balance.
 - `VIDEOMP3WORD_BASE_URL`: upstream site URL, defaults to `https://videomp3word.com`
-- `VIDEOMP3WORD_API_KEY`: upstream API key for videomp3word account (optional alternative or supplement to cookie)
+- `VIDEOMP3WORD_API_KEY`: optional upstream API key sent alongside the required session cookie when available
 - `PUBLIC_BASE_URL`: public base URL of this MCP deployment, used for artifact download links
 - `BOT_PURCHASE_URL`: where bots buy access or tokens
 - `BOT_KEY_PORTAL_URL`: where bots retrieve their access key after purchase
@@ -51,7 +52,7 @@ Set these variables before deployment:
 - `HOST`: optional bind host, default `0.0.0.0`
 - `PORT`: optional port, default `3000`
 
-`VIDEOMP3WORD_SESSION_COOKIE` is the important upstream credential for the current videomp3word.com routes.
+`VIDEOMP3WORD_SESSION_COOKIE` is required for the current videomp3word.com routes, including shared token balance lookups.
 
 ## Install
 

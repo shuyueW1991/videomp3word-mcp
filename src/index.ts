@@ -138,7 +138,7 @@ function isAuthorizedRequest(req: Request, config: ServerConfig): boolean {
 }
 
 function hasServiceCredentials(config: ServerConfig): boolean {
-  return Boolean(config.sessionCookie || config.upstreamApiKey);
+  return Boolean(config.sessionCookie);
 }
 
 function buildUpstreamHeaders(config: ServerConfig): HeadersInit {
@@ -422,9 +422,7 @@ async function callUpstreamConversion(
   payload: Record<string, unknown>
 ) {
   if (!hasServiceCredentials(config)) {
-    throw new Error(
-      "This deployment is missing upstream credentials. Set VIDEOMP3WORD_SESSION_COOKIE before publishing."
-    );
+    throw new Error("VIDEOMP3WORD_SESSION_COOKIE is required before this deployment can call videomp3word.");
   }
 
   const response = await fetch(new URL(modeCatalog[mode].route, config.baseUrl), {

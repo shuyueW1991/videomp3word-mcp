@@ -97,6 +97,23 @@ async function stopProcess(process: SpawnedApp) {
   await once(process, "exit");
 }
 
+async function captureProcessExit(process: SpawnedApp) {
+  let stdout = "";
+  let stderr = "";
+
+  process.stdout?.setEncoding("utf8");
+  process.stderr?.setEncoding("utf8");
+  process.stdout?.on("data", (chunk: string) => {
+    stdout += chunk;
+  });
+  process.stderr?.on("data", (chunk: string) => {
+    stderr += chunk;
+  });
+
+  const [code, signal] = (await once(process, "exit")) as [number | null, NodeJS.Signals | null];
+  return { code, signal, stdout, stderr };
+}
+
 function createClient(baseUrl: string, headers?: HeadersInit) {
   const transport = new StreamableHTTPClientTransport(new URL("/mcp", baseUrl), {
     requestInit: headers ? { headers } : undefined,
@@ -294,4 +311,21 @@ test("bot access flow smoke test", async () => {
     await stopProcess(app);
     await stopServer(upstream.server);
   }
+});
+
+test("startup fails without required session cookie", async () => {
+  const app = fork("dist/index.js", [], {
+    cwd: repoRoot,
+    env: {
+      HOST: "127.0.0.1",
+      PORT: "0",
+      MCP_ACCESS_KEYS: "smoke-access-key",
+    },
+    stdio: ["ignore", "pipe", "pipe", "ipc"],
+  });
+
+  const result = await captureProcessExit(app);
+  assert.notEqual(result.code, 0);
+  assert.equal(result.signal, null);
+  assert.match(result.stderr, /VIDEOMP3WORD_SESSION_COOKIE is required/i);
 });

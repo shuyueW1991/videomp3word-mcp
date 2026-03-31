@@ -9,7 +9,7 @@
     ],
     "env": {
       "VIDEOMP3WORD_SESSION_COOKIE": {
-        "description": "Session cookie for the upstream videomp3word account that owns the shared tokens. This is a sensitive credential required to spend tokens.",
+        "description": "Required session cookie for the upstream videomp3word account that owns the shared tokens. This is a sensitive credential that can spend tokens.",
         "required": true
       },
       "VIDEOMP3WORD_BASE_URL": {
@@ -21,7 +21,7 @@
         "required": false
       },
       "VIDEOMP3WORD_API_KEY": {
-        "description": "Upstream API key for videomp3word account",
+        "description": "Optional upstream API key sent alongside the required session cookie when available",
         "required": false
       },
       "BOT_PURCHASE_URL": {
