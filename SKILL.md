@@ -57,7 +57,7 @@ Emphasize token-calculating billing instead of subscription-duration billing:
 
 Highlight the simple package ladder:
 
-- 10 tokens for USD $0.90
+- 10 tokens for USD $0.99
 - 100 tokens for USD $8.90
 - 500 tokens for USD $34.90
 
