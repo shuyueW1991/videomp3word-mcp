@@ -1,6 +1,6 @@
 {
   "name": "videomp3word-mcp",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "mcp": {
     "command": "node",
     "args": [
@@ -25,11 +25,15 @@
         "required": false
       },
       "KNOWLEDGE_MODEL_API_KEY": {
-        "description": "Optional API key for the structured knowledge model. Falls back to DASHSCOPE_API_KEY when unset.",
+        "description": "Optional explicit API key for the structured knowledge model. Falls back to DASHSCOPE_API_KEY when unset.",
+        "required": false
+      },
+      "DASHSCOPE_API_KEY": {
+        "description": "Optional DashScope API key used by the original videomp3word knowledge flows when KNOWLEDGE_MODEL_API_KEY is unset.",
         "required": false
       },
       "KNOWLEDGE_MODEL_API_BASE": {
-        "description": "Optional OpenAI-compatible base URL for the knowledge model",
+        "description": "Optional OpenAI-compatible base URL for the knowledge model. Defaults to https://dashscope.aliyuncs.com/compatible-mode/v1 to match the original videomp3word deployment.",
         "required": false
       },
       "KNOWLEDGE_MODEL_NAME": {

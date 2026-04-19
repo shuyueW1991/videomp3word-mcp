@@ -14,6 +14,9 @@ export type ServerConfig = {
   knowledgeEvaluationModelName: string;
 };
 
+const DEFAULT_KNOWLEDGE_MODEL_API_BASE = "https://dashscope.aliyuncs.com/compatible-mode/v1";
+const DEFAULT_KNOWLEDGE_MODEL_NAME = "qwen-plus";
+
 function isLocalHostname(hostname: string): boolean {
   const normalized = hostname.trim().toLowerCase();
   return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "::1";
@@ -62,8 +65,9 @@ export function getConfig(): ServerConfig {
     throw new Error(`VIDEOMP3WORD_BASE_URL host "${upstreamHost}" is not allowed. Configure VIDEOMP3WORD_ALLOWED_UPSTREAM_HOSTS to permit it.`);
   }
 
+  // Keep the MCP defaults aligned with the original videomp3word deployment.
   const knowledgeModelApiBase = parseAbsoluteUrl(
-    process.env.KNOWLEDGE_MODEL_API_BASE?.trim() || "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    process.env.KNOWLEDGE_MODEL_API_BASE?.trim() || DEFAULT_KNOWLEDGE_MODEL_API_BASE,
     "KNOWLEDGE_MODEL_API_BASE",
   );
   requireHttpsForRemoteUrl(knowledgeModelApiBase, "KNOWLEDGE_MODEL_API_BASE");
@@ -101,8 +105,11 @@ export function getConfig(): ServerConfig {
     mongoDbName: process.env.MONGO_DB_NAME?.trim() || "videomp3word_mcp",
     knowledgeModelApiBase: knowledgeModelApiBase.toString().replace(/\/+$/, ""),
     knowledgeModelApiKey: process.env.KNOWLEDGE_MODEL_API_KEY?.trim() || process.env.DASHSCOPE_API_KEY?.trim(),
-    knowledgeModelName: process.env.KNOWLEDGE_MODEL_NAME?.trim() || "qwen-plus",
-    knowledgeEvaluationModelName: process.env.KNOWLEDGE_EVALUATION_MODEL_NAME?.trim() || process.env.KNOWLEDGE_MODEL_NAME?.trim() || "qwen-plus",
+    knowledgeModelName: process.env.KNOWLEDGE_MODEL_NAME?.trim() || DEFAULT_KNOWLEDGE_MODEL_NAME,
+    knowledgeEvaluationModelName:
+      process.env.KNOWLEDGE_EVALUATION_MODEL_NAME?.trim() ||
+      process.env.KNOWLEDGE_MODEL_NAME?.trim() ||
+      DEFAULT_KNOWLEDGE_MODEL_NAME,
   };
 }
 

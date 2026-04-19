@@ -107,8 +107,9 @@ Recommended:
 
 - `MCP_ACCESS_KEYS`: bearer keys for the REST endpoint and MCP tool
 - `MONGO_URI`: MongoDB connection string for persistent storage
-- `KNOWLEDGE_MODEL_API_KEY`: API key for the structured knowledge model
-- `KNOWLEDGE_MODEL_API_BASE`: OpenAI-compatible model endpoint, default DashScope-compatible base URL
+- `KNOWLEDGE_MODEL_API_KEY`: explicit API key for the structured knowledge model
+- `DASHSCOPE_API_KEY`: fallback key for the original videomp3word DashScope-backed knowledge flow when `KNOWLEDGE_MODEL_API_KEY` is unset
+- `KNOWLEDGE_MODEL_API_BASE`: OpenAI-compatible model endpoint, defaults to `https://dashscope.aliyuncs.com/compatible-mode/v1` to match the original videomp3word deployment
 - `KNOWLEDGE_MODEL_NAME`: knowledge model name, default `qwen-plus`
 - `PUBLIC_BASE_URL`: public base URL of this deployment
 
@@ -125,6 +126,7 @@ npm start
 Security notes:
 
 - `VIDEOMP3WORD_BASE_URL` and `KNOWLEDGE_MODEL_API_BASE` must use `https` for non-local deployments so credential-bearing requests are not sent over cleartext HTTP.
+- Transcript text, chunk context, and media URLs are sent to the configured upstream transcription service and, when enabled, to the configured knowledge model endpoint. Audit and trust those endpoints before deployment.
 - `MCP_ACCESS_KEYS` should be configured before exposing the HTTP or MCP endpoints outside a trusted network.
 
 Local endpoints:
