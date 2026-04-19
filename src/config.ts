@@ -3,22 +3,22 @@ export type ServerConfig = {
   port: number;
   baseUrl: string;
   publicBaseUrl?: string;
-  sessionCookie?: string;
+  sessionCookie: string;
   upstreamApiKey?: string;
-  purchaseUrl: string;
-  keyPortalUrl: string;
-  supportUrl: string;
   accessKeys: Set<string>;
-  artifactTtlMs: number;
+  mongoUri?: string;
+  mongoDbName: string;
+  knowledgeModelApiBase: string;
+  knowledgeModelApiKey?: string;
+  knowledgeModelName: string;
+  knowledgeEvaluationModelName: string;
 };
 
 export function getConfig(): ServerConfig {
   const configuredBaseUrl = process.env.VIDEOMP3WORD_BASE_URL || "https://videomp3word.com";
   const sessionCookie = process.env.VIDEOMP3WORD_SESSION_COOKIE?.trim();
   if (!sessionCookie) {
-    throw new Error(
-      "VIDEOMP3WORD_SESSION_COOKIE is required. Use a dedicated upstream videomp3word account for this deployment."
-    );
+    throw new Error("VIDEOMP3WORD_SESSION_COOKIE is required. Use a dedicated upstream videomp3word account for this deployment.");
   }
 
   let parsedBaseUrl: URL;
@@ -26,10 +26,6 @@ export function getConfig(): ServerConfig {
     parsedBaseUrl = new URL(configuredBaseUrl);
   } catch {
     throw new Error("VIDEOMP3WORD_BASE_URL must be a valid absolute URL.");
-  }
-
-  if (!["http:", "https:"].includes(parsedBaseUrl.protocol)) {
-    throw new Error("VIDEOMP3WORD_BASE_URL must use http or https.");
   }
 
   const allowedUpstreamHosts = new Set(
@@ -40,12 +36,9 @@ export function getConfig(): ServerConfig {
   );
   const upstreamHost = parsedBaseUrl.hostname.toLowerCase();
   if (!allowedUpstreamHosts.has(upstreamHost)) {
-    throw new Error(
-      `VIDEOMP3WORD_BASE_URL host "${upstreamHost}" is not allowed. Configure VIDEOMP3WORD_ALLOWED_UPSTREAM_HOSTS to permit it.`
-    );
+    throw new Error(`VIDEOMP3WORD_BASE_URL host "${upstreamHost}" is not allowed. Configure VIDEOMP3WORD_ALLOWED_UPSTREAM_HOSTS to permit it.`);
   }
 
-  const baseUrl = parsedBaseUrl.toString().replace(/\/+$/, "");
   const accessKeys = new Set(
     String(process.env.MCP_ACCESS_KEYS || "")
       .split(",")
@@ -56,20 +49,21 @@ export function getConfig(): ServerConfig {
   if (nodeEnv === "production" && accessKeys.size === 0) {
     throw new Error("MCP_ACCESS_KEYS must be configured in production.");
   }
-  const artifactTtlSeconds = Number(process.env.ARTIFACT_TTL_SECONDS || 1800);
 
   return {
     host: process.env.HOST || "0.0.0.0",
     port: Number(process.env.PORT || 3000),
-    baseUrl,
+    baseUrl: parsedBaseUrl.toString().replace(/\/+$/, ""),
     publicBaseUrl: process.env.PUBLIC_BASE_URL?.replace(/\/+$/, ""),
     sessionCookie,
     upstreamApiKey: process.env.VIDEOMP3WORD_API_KEY?.trim(),
-    purchaseUrl: (process.env.BOT_PURCHASE_URL || `${baseUrl}/profile`).trim(),
-    keyPortalUrl: (process.env.BOT_KEY_PORTAL_URL || `${baseUrl}/contact`).trim(),
-    supportUrl: (process.env.BOT_SUPPORT_URL || `${baseUrl}/contact`).trim(),
     accessKeys,
-    artifactTtlMs: Math.max(60, Number.isFinite(artifactTtlSeconds) ? artifactTtlSeconds : 1800) * 1000,
+    mongoUri: process.env.MONGO_URI?.trim(),
+    mongoDbName: process.env.MONGO_DB_NAME?.trim() || "videomp3word_mcp",
+    knowledgeModelApiBase: (process.env.KNOWLEDGE_MODEL_API_BASE || "https://dashscope.aliyuncs.com/compatible-mode/v1").replace(/\/+$/, ""),
+    knowledgeModelApiKey: process.env.KNOWLEDGE_MODEL_API_KEY?.trim() || process.env.DASHSCOPE_API_KEY?.trim(),
+    knowledgeModelName: process.env.KNOWLEDGE_MODEL_NAME?.trim() || "qwen-plus",
+    knowledgeEvaluationModelName: process.env.KNOWLEDGE_EVALUATION_MODEL_NAME?.trim() || process.env.KNOWLEDGE_MODEL_NAME?.trim() || "qwen-plus",
   };
 }
 
