@@ -133,10 +133,10 @@ test("structured knowledge endpoint and MCP tool work end-to-end", async () => {
 
     const healthResponse = await fetch(`${baseUrl}/health`);
     assert.equal(healthResponse.status, 200);
-    const healthJson = await healthResponse.json() as { ok: boolean; name: string; storage_driver: string };
+    const healthJson = await healthResponse.json() as { ok: boolean; name: string; auth_required: boolean };
     assert.equal(healthJson.ok, true);
     assert.equal(healthJson.name, "videomp3word-mcp");
-    assert.equal(healthJson.storage_driver, "memory");
+    assert.equal(healthJson.auth_required, true);
 
     const unauthorizedResponse = await fetch(`${baseUrl}/video_to_knowledge`, {
       method: "POST",
@@ -245,4 +245,29 @@ test("startup fails without required session cookie", async () => {
   assert.notEqual(code, 0);
   assert.equal(signal, null);
   assert.match(stderr, /VIDEOMP3WORD_SESSION_COOKIE is required/i);
+});
+
+test("startup fails when upstream base URL uses insecure remote http", async () => {
+  const app = fork("dist/index.js", [], {
+    cwd: repoRoot,
+    env: {
+      HOST: "127.0.0.1",
+      PORT: "0",
+      VIDEOMP3WORD_BASE_URL: "http://videomp3word.com",
+      VIDEOMP3WORD_SESSION_COOKIE: "session=smoke-cookie",
+      MCP_ACCESS_KEYS: "smoke-access-key",
+    },
+    stdio: ["ignore", "pipe", "pipe", "ipc"],
+  });
+
+  let stderr = "";
+  app.stderr?.setEncoding("utf8");
+  app.stderr?.on("data", (chunk: string) => {
+    stderr += chunk;
+  });
+
+  const [code, signal] = (await once(app, "exit")) as [number | null, NodeJS.Signals | null];
+  assert.notEqual(code, 0);
+  assert.equal(signal, null);
+  assert.match(stderr, /VIDEOMP3WORD_BASE_URL must use https outside local development/i);
 });

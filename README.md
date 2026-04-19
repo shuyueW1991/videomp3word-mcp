@@ -101,7 +101,7 @@ If `MONGO_URI` is not configured, the server uses an in-memory repository for lo
 
 Required:
 
-- `VIDEOMP3WORD_SESSION_COOKIE`: upstream videomp3word session used for transcription
+- `VIDEOMP3WORD_SESSION_COOKIE`: upstream videomp3word session used for transcription. Use a dedicated upstream account and inject this at runtime only; never commit it into the package or a checked-in `.env` file.
 
 Recommended:
 
@@ -114,11 +114,18 @@ Recommended:
 
 ## Install And Run
 
+This package ships runnable code, but deployment remains manual: install dependencies, build the TypeScript sources, and then start the server yourself.
+
 ```bash
 npm install
 npm run build
 npm start
 ```
+
+Security notes:
+
+- `VIDEOMP3WORD_BASE_URL` and `KNOWLEDGE_MODEL_API_BASE` must use `https` for non-local deployments so credential-bearing requests are not sent over cleartext HTTP.
+- `MCP_ACCESS_KEYS` should be configured before exposing the HTTP or MCP endpoints outside a trusted network.
 
 Local endpoints:
 

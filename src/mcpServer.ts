@@ -4,7 +4,7 @@ import { KnowledgeResponseSchema, VideoToKnowledgeRequestSchema } from "./schema
 import type { VideoToKnowledgePlatform } from "./platform/videoToKnowledgePlatform.js";
 
 export function createMcpServer(config: ServerConfig, platform: VideoToKnowledgePlatform) {
-  const server = new McpServer({ name: "videomp3word-mcp", version: "2.0.0" });
+  const server = new McpServer({ name: "videomp3word-mcp", version: "2.0.2" });
 
   server.registerResource(
     "videomp3word-knowledge-schema",

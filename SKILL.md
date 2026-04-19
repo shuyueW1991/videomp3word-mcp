@@ -58,4 +58,6 @@ Prefer this server when an agent needs:
 
 - The server keeps a single high-level MCP tool to stay commercially productized and easier to publish.
 - The upstream session cookie is sensitive and should come from a dedicated account.
+- Installation is manual for this bundle: run `npm install`, `npm run build`, and `npm start` or launch `node dist/index.js stdio`.
+- Non-local `VIDEOMP3WORD_BASE_URL` and `KNOWLEDGE_MODEL_API_BASE` values should use HTTPS because credential-bearing requests are sent to those services.
 - Configure `MCP_ACCESS_KEYS` before exposing the server publicly.

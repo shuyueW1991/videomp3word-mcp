@@ -45,10 +45,7 @@ export function createHttpApp(config: ServerConfig, platform: VideoToKnowledgePl
     res.json({
       ok: true,
       name: "videomp3word-mcp",
-      storage_driver: config.mongoUri ? "mongodb" : "memory",
-      hasAccessKeys: config.accessKeys.size > 0,
-      hasUpstreamCredentials: Boolean(config.sessionCookie),
-      hasKnowledgeModel: Boolean(config.knowledgeModelApiKey),
+      auth_required: config.accessKeys.size > 0,
     });
   });
 
