@@ -1,10 +1,9 @@
 import assert from "node:assert/strict";
-import { fork, type ChildProcessByStdio } from "node:child_process";
+import { fork } from "node:child_process";
 import { once } from "node:events";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { AddressInfo } from "node:net";
 import path from "node:path";
-import { Readable } from "node:stream";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -153,6 +152,8 @@ test("bot access flow smoke test", async () => {
   const sessionCookie = "session=smoke-cookie";
   let profileSawCookie = false;
   let convertSawCookie = false;
+  let estimateSawCookie = false;
+  let transformSawCookie = false;
 
   const upstream = await startServer(async (req, res) => {
     const url = new URL(req.url || "/", "http://127.0.0.1");
@@ -189,6 +190,59 @@ test("bot access flow smoke test", async () => {
         })}\n`
       );
       res.end(`${JSON.stringify({ type: "exit", code: 0 })}\n`);
+      return;
+    }
+
+    if (url.pathname === "/api/video2word" && req.method === "POST") {
+      estimateSawCookie = req.headers.cookie === sessionCookie;
+      res.setHeader("content-type", "application/json");
+      res.end(
+        JSON.stringify({
+          estimatedTokenConsumption: 2.5,
+          durationSeconds: 45,
+          taskTokenPrice: 1,
+        })
+      );
+      return;
+    }
+
+    if (url.pathname === "/api/transcript-transform" && req.method === "POST") {
+      transformSawCookie = req.headers.cookie === sessionCookie;
+      res.setHeader("content-type", "application/json");
+      res.end(
+        JSON.stringify({
+          result: "Short summary from transcript.",
+        })
+      );
+      return;
+    }
+
+    if (url.pathname === "/api/youtube/transcript" && req.method === "GET") {
+      res.setHeader("content-type", "application/json");
+      res.end(
+        JSON.stringify({
+          transcript: [
+            { text: "Hello from YouTube." },
+            { text: "Second transcript line." },
+          ],
+          languageCode: "en",
+          languageName: "English",
+          title: "Transcript Demo",
+          source: "youtube-metadata",
+        })
+      );
+      return;
+    }
+
+    if (url.pathname === "/api/youtube/oembed" && req.method === "GET") {
+      res.setHeader("content-type", "application/json");
+      res.end(
+        JSON.stringify({
+          embeddable: true,
+          title: "Embeddable Demo",
+          authorName: "Demo Author",
+        })
+      );
       return;
     }
 
@@ -265,6 +319,21 @@ test("bot access flow smoke test", async () => {
     assert.match(buyAccessText, /https:\/\/example\.com\/buy/);
     assert.match(buyAccessText, /https:\/\/example\.com\/portal/);
     assert.match(buyAccessText, /https:\/\/example\.com\/support/);
+
+    const youtubeEmbedCheck = await publicAccess.client.callTool({
+      name: "videomp3word_youtube_embed_check",
+      arguments: {
+        videoId: "jNQXAC9IVRw",
+      },
+    });
+    const youtubeEmbedPayload = JSON.parse(getToolText(youtubeEmbedCheck)) as {
+      embeddable: boolean;
+      title: string;
+      authorName: string;
+    };
+    assert.equal(youtubeEmbedPayload.embeddable, true);
+    assert.equal(youtubeEmbedPayload.title, "Embeddable Demo");
+    assert.equal(youtubeEmbedPayload.authorName, "Demo Author");
     await publicAccess.transport.close();
 
     const authorizedAccess = createClient(baseUrl, {
@@ -303,8 +372,54 @@ test("bot access flow smoke test", async () => {
     assert.equal(artifactResponse.headers.get("content-type"), "audio/mpeg");
     assert.equal(await artifactResponse.text(), "synthetic-audio");
 
+    const estimate = await authorizedAccess.client.callTool({
+      name: "videomp3word_estimate",
+      arguments: {
+        mode: "video_to_word",
+        sourceUrl: "https://example.com/demo.mp4",
+        transcriptLanguage: "en",
+      },
+    });
+    const estimatePayload = JSON.parse(getToolText(estimate)) as {
+      estimatedTokenConsumption: number;
+      durationSeconds: number;
+      taskTokenPrice: number;
+      transcriptLanguage: { value: string; label: string } | null;
+    };
+    assert.equal(estimatePayload.estimatedTokenConsumption, 2.5);
+    assert.equal(estimatePayload.durationSeconds, 45);
+    assert.equal(estimatePayload.taskTokenPrice, 1);
+    assert.deepEqual(estimatePayload.transcriptLanguage, {
+      value: "en",
+      label: "English",
+    });
+
+    const transformTranscript = await authorizedAccess.client.callTool({
+      name: "videomp3word_transform_transcript",
+      arguments: {
+        transcript: "Hello world.\nThis is a longer transcript.",
+        action: "summary",
+        summaryLanguage: "en",
+        summaryLengthWords: 120,
+      },
+    });
+    assert.equal(getToolText(transformTranscript), "Short summary from transcript.");
+
+    const youtubeTranscript = await authorizedAccess.client.callTool({
+      name: "videomp3word_youtube_transcript",
+      arguments: {
+        sourceUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+        language: "en",
+      },
+    });
+    const youtubeTranscriptText = getToolText(youtubeTranscript);
+    assert.match(youtubeTranscriptText, /Hello from YouTube\./);
+    assert.match(youtubeTranscriptText, /Second transcript line\./);
+
     assert.equal(profileSawCookie, true);
     assert.equal(convertSawCookie, true);
+    assert.equal(estimateSawCookie, true);
+    assert.equal(transformSawCookie, true);
 
     await authorizedAccess.transport.close();
   } finally {

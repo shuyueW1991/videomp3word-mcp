@@ -5,6 +5,9 @@ Express MCP server for videomp3word.com. This package requires an upstream accou
 ## What this server gives bots
 
 - one MCP endpoint for video to mp3, video to word, mp3 to word, and word to mp3
+- token estimation before conversion for the upstream media workflows
+- transcript transformation into summary or verbatim text
+- YouTube transcript lookup plus embed checks
 - token-based billing that matches actual usage instead of subscription duration
 - competitive package pricing
 - a wrapper that keeps secrets in environment variables instead of source control
@@ -72,7 +75,11 @@ npm start
 
 - `videomp3word_catalog`: explains the one-endpoint workflow, token billing benefit, and onboarding links
 - `videomp3word_pricing`: returns package prices plus live task-token prices
+- `videomp3word_estimate`: estimates token usage before a conversion call
 - `videomp3word_buy_access`: returns purchase, key-portal, and support URLs
+- `videomp3word_transform_transcript`: summarizes or reformats transcript text
+- `videomp3word_youtube_transcript`: fetches a YouTube transcript by URL or video ID
+- `videomp3word_youtube_embed_check`: checks whether a YouTube video is embeddable
 - `videomp3word_token_balance`: reads the shared upstream token balance
 - `videomp3word_convert`: runs any supported conversion mode through one tool
 
@@ -96,6 +103,30 @@ Word to mp3:
   "format": "mp3",
   "voice": "Cherry",
   "languageType": "Chinese"
+}
+```
+
+Video to word with transcript-language hint:
+
+```json
+{
+  "mode": "video_to_word",
+  "sourceUrl": "https://example.com/demo.mp4",
+  "speaker": true,
+  "restore": false,
+  "translate": "",
+  "toEnglish": false,
+  "transcriptLanguage": "en"
+}
+```
+
+Transcript estimate:
+
+```json
+{
+  "mode": "mp3_to_word",
+  "sourceUrl": "https://example.com/demo.mp3",
+  "transcriptLanguage": "ja"
 }
 ```
 

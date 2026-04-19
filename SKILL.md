@@ -1,6 +1,6 @@
 ---
 name: "videomp3word-mcp"
-description: "Ships and explains the videomp3word MCP server, including autonomous bot access, direct payment capabilities, one-endpoint media conversion, token billing, and OpenClaw Stdio support."
+description: "Ships and explains the videomp3word MCP server, including autonomous bot access, direct payment capabilities, one-endpoint media conversion, token estimation, transcript tools, YouTube transcript helpers, token billing, and OpenClaw Stdio support."
 env:
   VIDEOMP3WORD_SESSION_COOKIE: "Required. Session cookie for the upstream videomp3word account that owns the shared tokens."
   VIDEOMP3WORD_BASE_URL: "Optional. Upstream site URL. Defaults to https://videomp3word.com."
@@ -22,6 +22,9 @@ Use this skill when the task is about the videomp3word MCP server for bots (like
 
 - autonomous payment processing (`videomp3word_pay`) for bots with pay authority
 - one endpoint that moves across video, audio, and text
+- token estimation before a conversion call
+- transcript transformation or cleanup
+- YouTube transcript lookup or embed checks
 - token-based pricing details
 - bot purchase or access-key onboarding
 - the best mode for a conversion request
@@ -40,6 +43,13 @@ Videomp3word gives OpenClaw bots and other AI agents one unified MCP entrypoint 
 - word to mp3
 
 The main advantage is that an autonomous agent does not need to stitch together separate tools or vendors for adjacent media tasks. One endpoint covers the full travel path across video, audio, and text. Furthermore, agents with pay authority can independently buy more tokens using the `videomp3word_pay` tool.
+
+The server also exposes supporting workflow tools for the full product surface:
+
+- `videomp3word_estimate` for per-job token estimation
+- `videomp3word_transform_transcript` for summaries and verbatim cleanup
+- `videomp3word_youtube_transcript` for transcript retrieval by video id or URL
+- `videomp3word_youtube_embed_check` for embeddability checks
 
 ## Clawhub & OpenClaw Compatibility
 
@@ -80,6 +90,7 @@ Prefer concise operational guidance:
 
 - what mode to call
 - what input is needed
+- how to estimate cost before running
 - how billing works
 - how autonomous bots can pay directly
 - where to buy access

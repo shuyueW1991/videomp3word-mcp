@@ -11,6 +11,7 @@ import { serverConfig, type ServerConfig } from "./config.js";
 
 type ConversionMode = "video_to_mp3" | "video_to_word" | "mp3_to_word" | "word_to_mp3";
 type ArtifactKind = "audio" | "text";
+type TranscriptLanguageValue = "auto" | "en" | "zh" | "ar" | "fr" | "de" | "it" | "ja" | "ko" | "pt" | "ru" | "es";
 
 type ArtifactRecord = {
   id: string;
@@ -48,6 +49,37 @@ const packageCatalog = [
   { tokens: 100, priceUsd: 8.9 },
   { tokens: 500, priceUsd: 34.9 },
 ] as const;
+
+const transcriptLanguageValues = ["auto", "en", "zh", "ar", "fr", "de", "it", "ja", "ko", "pt", "ru", "es"] as const;
+const transcriptLanguageLabels: Record<TranscriptLanguageValue, string> = {
+  auto: "Auto detect",
+  en: "English",
+  zh: "Chinese",
+  ar: "Arabic",
+  fr: "French",
+  de: "German",
+  it: "Italian",
+  ja: "Japanese",
+  ko: "Korean",
+  pt: "Portuguese",
+  ru: "Russian",
+  es: "Spanish",
+};
+const transcriptTransformActions = ["summary", "verbatim"] as const;
+const youtubeHosts = new Set([
+  "youtube.com",
+  "www.youtube.com",
+  "m.youtube.com",
+  "music.youtube.com",
+  "gaming.youtube.com",
+  "youtu.be",
+  "www.youtu.be",
+  "youtube-nocookie.com",
+  "www.youtube-nocookie.com",
+]);
+const youtubeVideoIdPattern = /^[a-zA-Z0-9_-]{11}$/;
+const wordToMp3EstimatedSyllablesPerSecond = 3.5;
+const discountedNormalTaskFactor = 0.1;
 
 const modeCatalog: Record<
   ConversionMode,
@@ -119,7 +151,14 @@ function isRestrictedToolCall(req: Request): boolean {
 
   return (
     method === "tools/call" &&
-    (toolName === "videomp3word_convert" || toolName === "videomp3word_token_balance" || toolName === "videomp3word_pay")
+    (
+      toolName === "videomp3word_convert" ||
+      toolName === "videomp3word_estimate" ||
+      toolName === "videomp3word_transform_transcript" ||
+      toolName === "videomp3word_youtube_transcript" ||
+      toolName === "videomp3word_token_balance" ||
+      toolName === "videomp3word_pay"
+    )
   );
 }
 
@@ -160,6 +199,156 @@ function buildUpstreamHeaders(config: ServerConfig): HeadersInit {
 function estimateTextTokens(text: string): number {
   const cjkCount = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
   return text.length + cjkCount;
+}
+
+function estimateLatinWordSyllables(word: string): number {
+  const lowerWord = word.toLowerCase().replace(/[^a-z\u00c0-\u024f]/giu, "");
+  if (!lowerWord) {
+    return 0;
+  }
+
+  if (lowerWord.length <= 3) {
+    return 1;
+  }
+
+  let normalized = lowerWord
+    .replace(/(?:[^laeiouy]|ed|[^laeiouy]es|e)$/iu, "")
+    .replace(/^y/iu, "");
+
+  if (!normalized) {
+    normalized = lowerWord;
+  }
+
+  const groups = normalized.match(/[aeiouy\u00c0-\u00ff]+/giu);
+  const groupCount = groups ? groups.length : 0;
+
+  if (/[^aeiouy]le$/iu.test(lowerWord)) {
+    return Math.max(1, groupCount + 1);
+  }
+
+  return Math.max(1, groupCount);
+}
+
+function estimateCyrillicWordSyllables(word: string): number {
+  const groups = word.toLowerCase().match(/[аеёиоуыэюя]+/giu);
+  return Math.max(1, groups ? groups.length : 0);
+}
+
+function estimateSyllableCount(value: string): number {
+  const normalized = value.replace(/\r\n/g, "\n");
+
+  let syllableCount =
+    (normalized.match(/[\u3400-\u4dbf\u4e00-\u9fff]/gu) || []).length +
+    (normalized.match(/[\u3041-\u3096]/gu) || []).length +
+    (normalized.match(/[\u30a1-\u30fa\u30fd-\u30ff]/gu) || []).length +
+    (normalized.match(/[\uac00-\ud7af]/gu) || []).length;
+
+  const withoutSyllabicChars = normalized
+    .replace(/[\u3400-\u4dbf\u4e00-\u9fff]/gu, " ")
+    .replace(/[\u3041-\u3096]/gu, " ")
+    .replace(/[\u30a1-\u30fa\u30fd-\u30ff]/gu, " ")
+    .replace(/[\uac00-\ud7af]/gu, " ");
+
+  const latinWords = withoutSyllabicChars.match(/[a-z\u00c0-\u024f]+/giu) || [];
+  for (const word of latinWords) {
+    syllableCount += estimateLatinWordSyllables(word);
+  }
+
+  const remainingAfterLatin = withoutSyllabicChars.replace(/[a-z\u00c0-\u024f]+/giu, " ");
+  const cyrillicWords = remainingAfterLatin.match(/[\u0400-\u04ff]+/gu) || [];
+  for (const word of cyrillicWords) {
+    syllableCount += estimateCyrillicWordSyllables(word);
+  }
+
+  return syllableCount;
+}
+
+function roundAmount(value: number): number {
+  return Number(value.toFixed(4));
+}
+
+function estimateWordToMp3DurationSeconds(text: string): number {
+  return roundAmount(estimateSyllableCount(text) / wordToMp3EstimatedSyllablesPerSecond);
+}
+
+function estimateWordToMp3TokenCharge(durationSeconds: number): number {
+  return roundAmount(Math.max(0, durationSeconds) * discountedNormalTaskFactor);
+}
+
+function getTranscriptLanguageLabel(value: TranscriptLanguageValue): string {
+  return transcriptLanguageLabels[value] || transcriptLanguageLabels.auto;
+}
+
+function sanitizeYouTubeVideoId(value: string | null | undefined): string {
+  if (!value) {
+    return "";
+  }
+
+  const candidate = value.trim().replace(/[^a-zA-Z0-9_-]/g, "");
+  return youtubeVideoIdPattern.test(candidate) ? candidate : "";
+}
+
+function extractYouTubeVideoId(input: string): string {
+  const trimmed = input.replace(/^[\s`"']+|[\s`"']+$/g, "");
+  if (!trimmed) {
+    return "";
+  }
+
+  const directVideoId = sanitizeYouTubeVideoId(trimmed);
+  if (directVideoId) {
+    return directVideoId;
+  }
+
+  const normalizedInput =
+    /^https?:\/\//i.test(trimmed) ||
+    !/^((www|m|music|gaming)\.)?youtube\.com\/|^youtu\.be\/|^youtube-nocookie\.com\//i.test(trimmed)
+      ? trimmed
+      : `https://${trimmed}`;
+
+  try {
+    const parsed = new URL(normalizedInput);
+    const hostname = parsed.hostname.toLowerCase();
+    if (!youtubeHosts.has(hostname)) {
+      return "";
+    }
+
+    if (hostname.endsWith("youtu.be")) {
+      return sanitizeYouTubeVideoId(parsed.pathname.split("/").filter(Boolean)[0] || "");
+    }
+
+    const queryVideoId = sanitizeYouTubeVideoId(parsed.searchParams.get("v") || parsed.searchParams.get("vi"));
+    if (queryVideoId) {
+      return queryVideoId;
+    }
+
+    const pathSegments = parsed.pathname.split("/").filter(Boolean);
+    if (pathSegments.length === 0) {
+      return "";
+    }
+
+    if (["embed", "shorts", "live", "v"].includes(pathSegments[0])) {
+      return sanitizeYouTubeVideoId(pathSegments[1] || "");
+    }
+
+    return sanitizeYouTubeVideoId(pathSegments[0] || "");
+  } catch {
+    return "";
+  }
+}
+
+function buildTranscriptText(
+  segments: Array<{ text?: unknown; offset?: unknown; duration?: unknown; words?: unknown }>
+): string {
+  return segments
+    .map((segment) => {
+      if (!segment || typeof segment.text !== "string") {
+        return "";
+      }
+
+      return segment.text.trim();
+    })
+    .filter(Boolean)
+    .join("\n");
 }
 
 function artifactUrl(publicBaseUrl: string | undefined, artifactId: string): string | undefined {
@@ -296,6 +485,14 @@ async function extractUpstreamError(response: globalThis.Response): Promise<stri
   } catch {}
 
   return text || `Upstream request failed with status ${response.status}.`;
+}
+
+async function parseUpstreamJson<T>(response: globalThis.Response): Promise<T> {
+  if (!response.ok) {
+    throw new Error(await extractUpstreamError(response));
+  }
+
+  return (await response.json()) as T;
 }
 
 async function parseJsonLineResponse(response: globalThis.Response): Promise<ParsedJsonLineResult> {
@@ -441,9 +638,25 @@ async function callUpstreamConversion(
   return parseJsonLineResponse(response);
 }
 
+async function callUpstreamJsonApi<T>(
+  config: ServerConfig,
+  route: string,
+  init?: RequestInit
+): Promise<T> {
+  const response = await fetch(new URL(route, config.baseUrl), {
+    ...init,
+    headers: {
+      ...buildUpstreamHeaders(config),
+      ...(init?.headers ?? {}),
+    },
+  });
+
+  return parseUpstreamJson<T>(response);
+}
+
 function buildCatalogText(taskPrices: Partial<Record<ConversionMode, number | null>>) {
   const lines = [
-    "Videomp3word gives bots one MCP endpoint for the full video, audio, and text workflow.",
+    "Videomp3word gives bots one MCP endpoint for the full video, audio, text, and transcript workflow.",
     "",
     "Modes",
     ...Object.entries(modeCatalog).map(
@@ -457,8 +670,9 @@ function buildCatalogText(taskPrices: Partial<Record<ConversionMode, number | nu
     "",
     "Why bots like this endpoint",
     "- One integration covers video to mp3, video to word, mp3 to word, and word to mp3.",
+    "- It also exposes token estimation, transcript cleanup/summarization, and YouTube transcript lookup.",
     "- Billing follows token consumption instead of subscription duration, so idle time does not create waste.",
-    "- Packages stay simple and competitive: 10 tokens for USD $0.90, 100 for USD $8.90, 500 for USD $34.90.",
+    "- Packages stay simple and competitive: 10 tokens for USD $0.99, 100 for USD $8.90, 500 for USD $34.90.",
   ];
 
   return lines.join("\n");
@@ -514,6 +728,11 @@ function createServer(config: ServerConfig, publicBaseUrl: string | undefined) {
       const output = {
         endpointAdvantage:
           "One MCP endpoint covers video to mp3, video to word, mp3 to word, and word to mp3 so bots do not need separate adapters.",
+        additionalWorkflowTools: [
+          "Per-job token estimation before conversion",
+          "Transcript transformation into summary or verbatim text",
+          "YouTube transcript retrieval with language selection",
+        ],
         tokenBillingAdvantage:
           "Billing is tied to consumed task tokens instead of subscription duration, so unused time is not billed.",
         pricingPackages: packageCatalog,
@@ -564,6 +783,111 @@ function createServer(config: ServerConfig, publicBaseUrl: string | undefined) {
   );
 
   server.registerTool(
+    "videomp3word_estimate",
+    {
+      title: "Estimate Tokens",
+      description: "Estimate token usage for a conversion request before spending tokens on the upstream service.",
+      inputSchema: z.object({
+        mode: z.enum(["video_to_mp3", "video_to_word", "mp3_to_word", "word_to_mp3"]),
+        sourceUrl: z.string().url().optional(),
+        text: z.string().optional(),
+        format: z.enum(["mp3", "wav"]).optional(),
+        transcriptLanguage: z.enum(transcriptLanguageValues).optional(),
+        voice: z.string().min(1).max(100).optional(),
+        languageType: z.string().min(1).max(100).optional(),
+      }),
+    },
+    async ({ mode, sourceUrl, text, format, transcriptLanguage, voice, languageType }) => {
+      if (mode === "word_to_mp3") {
+        const rawText = text?.trim() || "";
+        if (!rawText) {
+          throw new Error("text is required for word_to_mp3 estimation.");
+        }
+
+        if (estimateTextTokens(rawText) > 12000) {
+          throw new Error("text exceeds the 12000-token upstream limit.");
+        }
+
+        const estimatedDurationSeconds = estimateWordToMp3DurationSeconds(rawText);
+        const estimatedTokenConsumption = estimateWordToMp3TokenCharge(estimatedDurationSeconds);
+        const output = {
+          mode,
+          estimatedInputTokens: estimateTextTokens(rawText),
+          estimatedDurationSeconds,
+          estimatedTokenConsumption,
+          format: format || "mp3",
+          voice: voice || null,
+          languageType: languageType || null,
+        };
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(output, null, 2) }],
+          structuredContent: output,
+        };
+      }
+
+      if (!sourceUrl) {
+        throw new Error("sourceUrl is required for this mode.");
+      }
+
+      const safeUrl = await assertSafeRemoteUrl(sourceUrl);
+      const payload: Record<string, unknown> = {
+        url: safeUrl.href,
+        estimateOnly: true,
+      };
+
+      if (mode === "video_to_mp3") {
+        payload.format = format || "mp3";
+      }
+
+      if (
+        (mode === "video_to_word" || mode === "mp3_to_word") &&
+        transcriptLanguage &&
+        transcriptLanguage !== "auto"
+      ) {
+        payload.transcriptLanguage = transcriptLanguage;
+      }
+
+      const response = await fetch(new URL(modeCatalog[mode].route, config.baseUrl), {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...buildUpstreamHeaders(config),
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const output = await parseUpstreamJson<{
+        estimatedTokenConsumption?: number | string;
+        durationSeconds?: number | string | null;
+        taskTokenPrice?: number | string | null;
+      }>(response);
+
+      const normalized = {
+        mode,
+        sourceUrl: safeUrl.href,
+        estimatedTokenConsumption: Number(output.estimatedTokenConsumption ?? 0),
+        durationSeconds:
+          output.durationSeconds == null ? null : Number(output.durationSeconds),
+        taskTokenPrice:
+          output.taskTokenPrice == null ? null : Number(output.taskTokenPrice),
+        transcriptLanguage:
+          transcriptLanguage && transcriptLanguage !== "auto"
+            ? {
+                value: transcriptLanguage,
+                label: getTranscriptLanguageLabel(transcriptLanguage),
+              }
+            : null,
+      };
+
+      return {
+        content: [{ type: "text", text: JSON.stringify(normalized, null, 2) }],
+        structuredContent: normalized,
+      };
+    }
+  );
+
+  server.registerTool(
     "videomp3word_buy_access",
     {
       title: "Buy Access",
@@ -590,6 +914,159 @@ function createServer(config: ServerConfig, publicBaseUrl: string | undefined) {
             text: `Purchase: ${config.purchaseUrl}\nKey portal: ${config.keyPortalUrl}\nSupport: ${config.supportUrl}`,
           },
         ],
+        structuredContent: output,
+      };
+    }
+  );
+
+  server.registerTool(
+    "videomp3word_transform_transcript",
+    {
+      title: "Transform Transcript",
+      description: "Convert a transcript into a faithful summary or a verbatim timestamp-free transcript.",
+      inputSchema: z.object({
+        transcript: z.string().min(1),
+        action: z.enum(transcriptTransformActions),
+        summaryLanguage: z.enum(transcriptLanguageValues).optional(),
+        summaryLengthWords: z.number().int().min(1).max(5000).optional(),
+      }),
+    },
+    async ({ transcript, action, summaryLanguage, summaryLengthWords }) => {
+      const response = await fetch(new URL("/api/transcript-transform", config.baseUrl), {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...buildUpstreamHeaders(config),
+        },
+        body: JSON.stringify({
+          transcript,
+          action,
+          summaryLanguage,
+          summaryLengthWords,
+        }),
+      });
+
+      const payload = await parseUpstreamJson<{ result?: string }>(response);
+      const resultText = (payload.result || "").trim();
+      if (!resultText) {
+        throw new Error("No transcript transform result returned.");
+      }
+
+      const output = {
+        action,
+        result: resultText,
+        summaryLanguage:
+          summaryLanguage && summaryLanguage !== "auto"
+            ? {
+                value: summaryLanguage,
+                label: getTranscriptLanguageLabel(summaryLanguage),
+              }
+            : null,
+        summaryLengthWords: summaryLengthWords ?? null,
+      };
+
+      return {
+        content: [{ type: "text", text: resultText }],
+        structuredContent: output,
+      };
+    }
+  );
+
+  server.registerTool(
+    "videomp3word_youtube_transcript",
+    {
+      title: "YouTube Transcript",
+      description: "Fetch a YouTube transcript by video ID or URL, with optional language preference.",
+      inputSchema: z.object({
+        videoId: z.string().min(1).optional(),
+        sourceUrl: z.string().url().optional(),
+        language: z.string().min(1).max(20).optional(),
+      }),
+    },
+    async ({ videoId, sourceUrl, language }) => {
+      const resolvedVideoId = sanitizeYouTubeVideoId(videoId) || (sourceUrl ? extractYouTubeVideoId(sourceUrl) : "");
+      if (!resolvedVideoId) {
+        throw new Error("Provide a valid YouTube videoId or sourceUrl.");
+      }
+
+      const route = new URL("/api/youtube/transcript", config.baseUrl);
+      route.searchParams.set("videoId", resolvedVideoId);
+      route.searchParams.set("lang", language?.trim() || "original");
+
+      const payload = await callUpstreamJsonApi<{
+        transcript?: Array<{ text?: unknown; offset?: unknown; duration?: unknown; words?: unknown }>;
+        languageCode?: string;
+        languageName?: string;
+        title?: string;
+        source?: string;
+      }>(config, `${route.pathname}${route.search}`);
+
+      const transcriptSegments = Array.isArray(payload.transcript) ? payload.transcript : [];
+      const transcriptText = buildTranscriptText(transcriptSegments);
+      if (!transcriptText) {
+        throw new Error("No YouTube transcript text returned.");
+      }
+
+      const artifact = createArtifact(
+        "text",
+        Buffer.from(transcriptText, "utf-8"),
+        "text/plain; charset=utf-8",
+        `youtube-${resolvedVideoId}.txt`,
+        publicBaseUrl,
+        config
+      );
+
+      const output = {
+        videoId: resolvedVideoId,
+        title: payload.title || null,
+        languageCode: payload.languageCode || null,
+        languageName: payload.languageName || null,
+        source: payload.source || "youtube-metadata",
+        transcript: transcriptText,
+        segments: transcriptSegments,
+        ...artifact,
+      };
+
+      return {
+        content: [{ type: "text", text: transcriptText }],
+        structuredContent: output,
+      };
+    }
+  );
+
+  server.registerTool(
+    "videomp3word_youtube_embed_check",
+    {
+      title: "YouTube Embed Check",
+      description: "Check whether a YouTube video is embeddable and return basic metadata.",
+      inputSchema: z.object({
+        videoId: z.string().min(1).optional(),
+        sourceUrl: z.string().url().optional(),
+      }),
+    },
+    async ({ videoId, sourceUrl }) => {
+      const resolvedVideoId = sanitizeYouTubeVideoId(videoId) || (sourceUrl ? extractYouTubeVideoId(sourceUrl) : "");
+      if (!resolvedVideoId) {
+        throw new Error("Provide a valid YouTube videoId or sourceUrl.");
+      }
+
+      const payload = await callUpstreamJsonApi<{
+        embeddable?: boolean;
+        title?: string;
+        authorName?: string;
+        error?: string;
+      }>(config, `/api/youtube/oembed?videoId=${encodeURIComponent(resolvedVideoId)}`);
+
+      const output = {
+        videoId: resolvedVideoId,
+        embeddable: Boolean(payload.embeddable),
+        title: payload.title || null,
+        authorName: payload.authorName || null,
+        error: payload.error || null,
+      };
+
+      return {
+        content: [{ type: "text", text: JSON.stringify(output, null, 2) }],
         structuredContent: output,
       };
     }
@@ -681,9 +1158,14 @@ function createServer(config: ServerConfig, publicBaseUrl: string | undefined) {
         format: z.enum(["mp3", "wav"]).optional(),
         voice: z.string().min(1).max(100).optional(),
         languageType: z.string().min(1).max(100).optional(),
+        speaker: z.boolean().optional(),
+        restore: z.boolean().optional(),
+        translate: z.string().max(100).optional(),
+        toEnglish: z.boolean().optional(),
+        transcriptLanguage: z.enum(transcriptLanguageValues).optional(),
       }),
     },
-    async ({ mode, sourceUrl, text, format, voice, languageType }) => {
+    async ({ mode, sourceUrl, text, format, voice, languageType, speaker, restore, translate, toEnglish, transcriptLanguage }) => {
       try {
       if (mode === "word_to_mp3") {
         const rawText = text?.trim() || "";
@@ -722,6 +1204,12 @@ function createServer(config: ServerConfig, publicBaseUrl: string | undefined) {
             audioUrl: audio.url,
             format: String(audio.format || format || "mp3"),
             filename: typeof audio.filename === "string" ? audio.filename : `output.${format || "mp3"}`,
+            billingDurationSeconds:
+              typeof parsed.result?.billing === "object" &&
+              parsed.result?.billing &&
+              typeof (parsed.result.billing as { durationSeconds?: unknown }).durationSeconds === "number"
+                ? (parsed.result.billing as { durationSeconds: number }).durationSeconds
+                : null,
           };
 
           return {
@@ -746,6 +1234,12 @@ function createServer(config: ServerConfig, publicBaseUrl: string | undefined) {
             mode,
             filename,
             mimeType,
+            billingDurationSeconds:
+              typeof parsed.result?.billing === "object" &&
+              parsed.result?.billing &&
+              typeof (parsed.result.billing as { durationSeconds?: unknown }).durationSeconds === "number"
+                ? (parsed.result.billing as { durationSeconds: number }).durationSeconds
+                : null,
             ...artifact,
           };
 
@@ -830,6 +1324,12 @@ function createServer(config: ServerConfig, publicBaseUrl: string | undefined) {
 
       const parsed = await callUpstreamConversion(config, mode, {
         url: safeUrl.href,
+        speaker,
+        restore,
+        translate,
+        toEnglish,
+        transcriptLanguage:
+          transcriptLanguage && transcriptLanguage !== "auto" ? transcriptLanguage : undefined,
       });
 
       const transcript = parsed.stdout.join("").trim();
@@ -850,6 +1350,13 @@ function createServer(config: ServerConfig, publicBaseUrl: string | undefined) {
         mode,
         sourceUrl: safeUrl.href,
         transcript,
+        transcriptLanguage:
+          transcriptLanguage && transcriptLanguage !== "auto"
+            ? {
+                value: transcriptLanguage,
+                label: getTranscriptLanguageLabel(transcriptLanguage),
+              }
+            : null,
         ...artifact,
       };
 
